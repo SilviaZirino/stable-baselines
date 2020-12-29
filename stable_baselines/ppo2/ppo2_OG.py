@@ -299,7 +299,7 @@ class PPO2(ActorCriticRLModel):
 
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
-    def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="PPO2",      # TRY log_interval=100 (instead of 1)
+    def learn(self, total_timesteps, callback=None, log_interval=1, tb_log_name="PPO2",
               reset_num_timesteps=True):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
@@ -335,7 +335,7 @@ class PPO2(ActorCriticRLModel):
                 # true_reward is the reward without discount
                 rollout = self.runner.run(callback)
                 # Unpack
-                obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward, episode_successes = rollout  #ADDED "episode_successes"
+                obs, returns, masks, actions, values, neglogpacs, states, ep_infos, true_reward = rollout
 
                 callback.on_rollout_end()
 
@@ -388,7 +388,6 @@ class PPO2(ActorCriticRLModel):
                                                 masks.reshape((self.n_envs, self.n_steps)),
                                                 writer, self.num_timesteps)
 
-
                 if self.verbose >= 1 and (update % log_interval == 0 or update == 1):
                     explained_var = explained_variance(values, returns)
                     logger.logkv("serial_timesteps", update * self.n_steps)
@@ -396,15 +395,6 @@ class PPO2(ActorCriticRLModel):
                     logger.logkv("total_timesteps", self.num_timesteps)
                     logger.logkv("fps", fps)
                     logger.logkv("explained_variance", float(explained_var))
-
-#-----------------------------------------------------------------------------------------------------------------------
-                    print('sono sopra alla condizione di printaggio del success rate (linea 401)')
-                    if len(episode_successes) > 0:
-                        print('sono sopra al printaggio del success rate (linea 402)')
-                        logger.logkv("mean 100 success rate", np.mean(episode_successes[-100:]))
-                        #logger.logkv("success rate", np.mean(episode_successes))                   
-#-----------------------------------------------------------------------------------------------------------------------
-
                     if len(self.ep_info_buf) > 0 and len(self.ep_info_buf[0]) > 0:
                         logger.logkv('ep_reward_mean', safe_mean([ep_info['r'] for ep_info in self.ep_info_buf]))
                         logger.logkv('ep_len_mean', safe_mean([ep_info['l'] for ep_info in self.ep_info_buf]))
@@ -478,10 +468,6 @@ class Runner(AbstractEnvRunner):
         mb_obs, mb_rewards, mb_actions, mb_values, mb_dones, mb_neglogpacs = [], [], [], [], [], []
         mb_states = self.states
         ep_infos = []
-#----------------------------------------------------------
-        episode_successes = []
-#-----------------------------------------------------------
-
         for _ in range(self.n_steps):
             actions, values, self.states, neglogpacs = self.model.step(self.obs, self.states, self.dones)
             mb_obs.append(self.obs.copy())
@@ -509,15 +495,7 @@ class Runner(AbstractEnvRunner):
                 maybe_ep_info = info.get('episode')
                 if maybe_ep_info is not None:
                     ep_infos.append(maybe_ep_info)
-
-#----------------------------------------------------------------------------------------
-                maybe_is_success = info.get('is_success')
-                if maybe_is_success is not None:
-                    print('dentro alla condizione ho la info is_success')
-                    episode_successes.append(float(maybe_is_success))
-#---------------------------------------------------------------------------------------------------------
             mb_rewards.append(rewards)
-            
         # batch of steps to batch of rollouts
         mb_obs = np.asarray(mb_obs, dtype=self.obs.dtype)
         mb_rewards = np.asarray(mb_rewards, dtype=np.float32)
@@ -544,7 +522,7 @@ class Runner(AbstractEnvRunner):
         mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, true_reward = \
             map(swap_and_flatten, (mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, true_reward))
 
-        return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward, episode_successes # ADDED "episode_successes"
+        return mb_obs, mb_returns, mb_dones, mb_actions, mb_values, mb_neglogpacs, mb_states, ep_infos, true_reward
 
 
 # obs, returns, masks, actions, values, neglogpacs, states = runner.run()
