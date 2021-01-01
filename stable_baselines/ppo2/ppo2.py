@@ -299,7 +299,7 @@ class PPO2(ActorCriticRLModel):
 
         return policy_loss, value_loss, policy_entropy, approxkl, clipfrac
 
-    def learn(self, total_timesteps, callback=None, log_interval=100, tb_log_name="PPO2",      # TRY log_interval=100 (instead of 1)
+    def learn(self, total_timesteps, callback=None, log_interval=1, tb_log_name="PPO2", 
               reset_num_timesteps=True):
         # Transform to callable if needed
         self.learning_rate = get_schedule_fn(self.learning_rate)
@@ -398,11 +398,9 @@ class PPO2(ActorCriticRLModel):
                     logger.logkv("explained_variance", float(explained_var))
 
 #-----------------------------------------------------------------------------------------------------------------------
-                    print('sono sopra alla condizione di printaggio del success rate (linea 401)')
                     if len(episode_successes) > 0:
-                        print('sono sopra al printaggio del success rate (linea 402)')
-                        logger.logkv("mean 100 success rate", np.mean(episode_successes[-100:]))
-                        #logger.logkv("success rate", np.mean(episode_successes))                   
+                        #logger.logkv("mean 100 success rate", np.mean(episode_successes[-100:]))
+                        logger.logkv("success rate", np.mean(episode_successes))                   
 #-----------------------------------------------------------------------------------------------------------------------
 
                     if len(self.ep_info_buf) > 0 and len(self.ep_info_buf[0]) > 0:
@@ -512,8 +510,7 @@ class Runner(AbstractEnvRunner):
 
 #----------------------------------------------------------------------------------------
                 maybe_is_success = info.get('is_success')
-                if maybe_is_success is not None:
-                    print('dentro alla condizione ho la info is_success')
+                if maybe_is_success is not None:                    
                     episode_successes.append(float(maybe_is_success))
 #---------------------------------------------------------------------------------------------------------
             mb_rewards.append(rewards)
